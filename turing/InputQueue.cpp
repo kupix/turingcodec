@@ -23,6 +23,10 @@ For more information, contact us at info @ turingcodec.org.
 #include <cassert>
 #include <deque>
 
+struct LookaheadAnalysisResults
+{
+};
+
 
 namespace {
 
@@ -37,6 +41,7 @@ struct Piece
     std::shared_ptr<InputQueue::Docket> docket;
     std::shared_ptr<PictureWrapper> picture;
     std::shared_ptr<AdaptiveQuantisation> aqInfo;
+    std::shared_ptr<LookaheadAnalysisResults> lookaheadAnalysisResults;
 
     bool done() const
     {
@@ -69,6 +74,11 @@ struct InputQueue::State
     const bool fieldCoding;
     const bool shotChange;
 
+
+    // list of pictures in preanalysis stage
+    std::deque<Piece> entriesPreanalysis;
+
+    // list of pictures use during SOP planning - ~8 pictures
     std::deque<Piece> entries;
 
     struct Timestamp
@@ -275,8 +285,8 @@ void InputQueue::State::process()
 void InputQueue::append(std::shared_ptr<PictureWrapper> picture, std::shared_ptr<AdaptiveQuantisation> aqInfo)
 {
     assert(!this->state->finish);
-    this->state->entries.push_back(Piece(picture));
-    this->state->entries.back().aqInfo = aqInfo;
+    this->state->entriesPreanalysis.push_back(Piece(picture));
+    this->state->entriesPreanalysis.back().aqInfo = aqInfo;
 
     auto &timestamps = this->state->timestamps;
 
@@ -297,6 +307,43 @@ void InputQueue::append(std::shared_ptr<PictureWrapper> picture, std::shared_ptr
 void InputQueue::endOfInput()
 {
     this->state->finish = true;
+}
+
+void InputQueue::preanalyse()
+{
+	auto n = this->state->entriesPreanalysis.size();
+	if (n >= 10 || this->state->finish)
+	{
+		if (n > 10)
+			n = 10;
+
+		// do preanalysis here
+		int sum = 0;
+		for (int i = 0; i < n; ++i)
+		{
+			auto picture = this->state->entriesPreanalysis.at(i).picture;
+			if (picture->sampleSize == 8)
+			{
+				auto &pictureWrap = static_cast<PictureWrap<uint8_t> &>(*picture);
+				auto &orgPicture = static_cast<Picture<uint8_t> &>(pictureWrap);
+				sum += orgPicture[0](0, 0);
+			}
+			else
+			{
+
+			}
+			
+		}
+
+		if (n)
+			std::cout << "sum over " << n << " pictures is " << sum << "\n";
+
+		for (int i = 0; i < n; ++i)
+		{
+			this->state->entries.push_back(this->state->entriesPreanalysis.front());
+			this->state->entriesPreanalysis.pop_front();
+		}
+	}
 }
 
 

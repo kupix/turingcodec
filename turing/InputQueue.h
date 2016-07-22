@@ -48,6 +48,8 @@ struct InputQueue
     // Called to tell the queue that no more pictures will be appended - this is the end of video input.
     void endOfInput();
 
+    void preanalyse();
+
     // Returns true if endOfInput() was previously called
     bool eos() const;
 
