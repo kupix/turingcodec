@@ -57,8 +57,3 @@ template <class H> void Read<bsp_initial_arrival_time>::go(bsp_initial_arrival_t
     auto h3 = h.extend(&recoveryPoint);
     Syntax<recovery_point>::go(f, h3);
 }
-
-
-#ifdef EXPLICIT_INSTANTIATION
-    EXPLICIT_INSTANTIATION(recovery_point)
-#endif
