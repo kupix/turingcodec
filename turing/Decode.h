@@ -402,7 +402,8 @@ struct Decode<residual_coding>
 
         QpState *qpState = h;
 
-        Read<residual_coding>::go(rc, h);
+        constexpr bool decodeCoefficients = true;
+        Read<residual_coding>::go<H, decodeCoefficients>(rc, h);
 
         const int nCbS = 1 << rc.log2TrafoSize;
 

@@ -42,11 +42,6 @@ For more information, contact us at info @ turingcodec.org.
 #include <fstream>
 
 
- // review: shouldn't be here
-template <class F>
-struct Decode;
-
-
 // checks just-decoded element value, may throw Abort if it's bad
 template <class V, class H, class Enable = void>
 struct ReadCheck
@@ -83,8 +78,8 @@ static std::ofstream &flog()
 
 struct CabacState
 {
-    int ivlCurrRange = -8;
-    int bitsNeeded = 510;
+    int ivlCurrRange = 510;
+    int bitsNeeded = -8;
     int ivlOffset = 0;
 };
 
@@ -743,7 +738,6 @@ struct Read<coding_unit>
             // Commit the 4th partition to the snake.
             const int size = 1 << cqt->log2CbSize >> 1;
             cursor->commit(Turing::Rectangle{ cqt->x0 + size, cqt->y0 + size, size, size }, neighbourhood->MinCbLog2SizeYMinus1);
-            //std::cout << "commit " << cqt->x0 + size << ", " << cqt->y0 + size << ", " << size << ", " << size << "\n";
         }
 
         commitCu(h, *cqt);
@@ -862,7 +856,7 @@ struct Access<coded_sub_block_flag, ResidualCodingStateOptimised<log2TrafoSize>>
 };
 
 
-template <int log2TrafoSize, class H>
+template <int log2TrafoSize, class H, bool decodeCoefficients>
 void optimisedReadResidualCoding(H &hParent)
 {
     ResidualCodingStateOptimised<log2TrafoSize> residualCodingState(hParent);
@@ -872,7 +866,7 @@ void optimisedReadResidualCoding(H &hParent)
     residual_coding *rc = h;
     assert(rc->log2TrafoSize == log2TrafoSize);
 
-    if (std::is_same<typename H::Tag, Decode<void>>::value)
+    if (decodeCoefficients)
     {
         const int sizeC = 1 << rc->log2TrafoSize;
         for (int yC = 0; yC < sizeC; ++yC)
@@ -970,13 +964,11 @@ void optimisedReadResidualCoding(H &hParent)
             residualCodingState.absoluteCoefficients[residualCodingState.nSigCoeffs] = h[sig_coeff_flag(c.x, c.y)];
             inferSbDcSigCoeffFlag &= !h[sig_coeff_flag(c.x, c.y)];
             int mask = -h[sig_coeff_flag(c.x, c.y)];
-            //if (std::is_same<typename H::Tag, Decode<void>>::value)
             residualCodingState.nn[residualCodingState.nSigCoeffs] = n;
             residualCodingState.coeffPositions[residualCodingState.nSigCoeffs] = c;
             residualCodingState.nSigCoeffs += h[sig_coeff_flag(c.x, c.y)];
         }
         residualCodingState.absoluteCoefficients[residualCodingState.nSigCoeffs] = 1;
-        //if (std::is_same<typename H::Tag, Decode<void>>::value)
         residualCodingState.nn[residualCodingState.nSigCoeffs] = 0;
         residualCodingState.coeffPositions[residualCodingState.nSigCoeffs] = s2;
         residualCodingState.nSigCoeffs += inferSbDcSigCoeffFlag;
@@ -1073,7 +1065,7 @@ void optimisedReadResidualCoding(H &hParent)
         mm = -residualCodingState.nSigCoeffs + signHidden;
         do
         {
-            int n = std::is_same<typename H::Tag, Decode<void>>::value ? pnn[mm - signHidden] : -1;
+            int n = decodeCoefficients ? pnn[mm - signHidden] : 0;
             h(coeff_sign_flag(n), ae(v));
         } while (++mm);
 
@@ -1091,7 +1083,7 @@ void optimisedReadResidualCoding(H &hParent)
             }
         } while (++mm);
 
-        if (std::is_same<typename H::Tag, Decode<void>>::value)
+        if (decodeCoefficients)
         {
             int sumAbsLevel = 0;
             mm = -residualCodingState.nSigCoeffs;
@@ -1121,16 +1113,16 @@ void optimisedReadResidualCoding(H &hParent)
 template <>
 struct Read<residual_coding>
 {
-    template <class H> static void go(const residual_coding &rc, H &hParent)
+    template <class H, bool decodeCoefficients=false> static void go(const residual_coding &rc, H &hParent)
     {
         static void(*const read[6])(H &) =
         {
             0,
             0,
-            optimisedReadResidualCoding<2, H>,
-            optimisedReadResidualCoding<3, H>,
-            optimisedReadResidualCoding<4, H>,
-            optimisedReadResidualCoding<5, H>,
+            optimisedReadResidualCoding<2, H, decodeCoefficients>,
+            optimisedReadResidualCoding<3, H, decodeCoefficients>,
+            optimisedReadResidualCoding<4, H, decodeCoefficients>,
+            optimisedReadResidualCoding<5, H, decodeCoefficients>,
         };
         read[rc.log2TrafoSize](hParent);
      }
@@ -1368,11 +1360,7 @@ void setIntraPartition(H &h, V &v, Turing::Rectangle &partition, int8_t mode, in
     {
         Snake<BlockData>::Array<32, 32, 0, 0> *snakeArrayCuCip = h;
         snakeArrayCuCip->resize(*cqt, h[MinCbLog2SizeY()] - 1);
-        //std::cout << *cqt << " a\n";
-        //neighbourhood->snake.print(std::cout, *cqt, neighbourhood->MinCbLog2SizeYMinus1);
         snakeArrayCuCip->copyBlockFrom(neighbourhood->snake, before, *cqt, neighbourhood->MinCbLog2SizeYMinus1, 0, 0);
-        //std::cout << *cqt << " b\n";
-        //snakeArrayCuCip->print(std::cout, *cqt, neighbourhood->MinCbLog2SizeYMinus1);
     }
 
     Snake<BlockData>::Cursor *cursor = h;
@@ -2003,10 +1991,6 @@ struct Read < Element<cu_chroma_qp_offset_flag, ae> >
     template <class H> static void go(Element<cu_chroma_qp_offset_flag, ae> fun, H &h)
     {
         transform_tree *tt = h;
-        if (h[PicOrderCntVal()] == 4 && tt->x0 == 888 && tt->y0 == 160)
-        {
-            std::cout << "\n";
-        }
 
         int binVal;
         h(DecodeDecision<cu_chroma_qp_offset_flag>(&binVal, 0));
