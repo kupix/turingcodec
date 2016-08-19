@@ -140,9 +140,10 @@ struct ProfileTierLevel  :
     ValueHolder<sub_layer_reserved_zero_43bits>,
     ValueHolder<sub_layer_inbld_flag>,
     ValueHolder<sub_layer_reserved_zero_bit>,
-    ValueHolder<sub_layer_level_idc>
-    {
-    };
+    ValueHolder<sub_layer_level_idc>,
+    AccessOperators<ProfileTierLevel>
+{
+};
 
 
 struct Vps :

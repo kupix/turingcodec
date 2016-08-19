@@ -111,7 +111,7 @@ public:
         int estimatedCpbFullness = m_cpbStatus + m_cpbBufferingRate;
 
         // Check whether the allocated bits will lead to cpb overflow
-        int overflowLevel = m_cpbSize * 0.9;
+        int overflowLevel = static_cast<int>(m_cpbSize * 0.9);
         if(estimatedCpbFullness - currentBitsPerPicture > overflowLevel)
         {
             currentBitsPerPicture = estimatedCpbFullness - overflowLevel;
@@ -119,7 +119,7 @@ public:
 
         // Check whether the allocated bits will lead to cpb underflow
         estimatedCpbFullness -= m_cpbBufferingRate;
-        int underflowLevel = m_cpbSize * 0.1;
+        int underflowLevel = static_cast<int>(m_cpbSize * 0.1);
         if(estimatedCpbFullness - currentBitsPerPicture < underflowLevel)
         {
             currentBitsPerPicture = estimatedCpbFullness - underflowLevel;
@@ -198,26 +198,26 @@ public:
         {
             m_previousCodedPictures.pop_front();
         }
-        for(int level = 0; level < m_codedCtusPerLevel.size(); level++)
+        for(size_t level = 0; level < m_codedCtusPerLevel.size(); level++)
         {
             delete[] m_codedCtusPerLevel[level];
         }
     }
 
     list<CodedPicture>& getPreviousCodedPictures()
-	{
+    {
         return m_previousCodedPictures;
-	}
+    }
 
     CodedPicture& getPictureAtLevel(int level)
     {
-        assert(level < m_codedPicturesPerLevel.size());
+        assert(level < static_cast<int>(m_codedPicturesPerLevel.size()));
         return m_codedPicturesPerLevel[level];
     }
 
     CodedCtu *getCodedCtuAtLevel(int level)
     {
-        assert(level < m_codedCtusPerLevel.size());
+        assert(level < static_cast<int>(m_codedCtusPerLevel.size()));
         return m_codedCtusPerLevel[level];
     }
 

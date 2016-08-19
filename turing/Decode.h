@@ -430,12 +430,9 @@ struct Decode<residual_coding>
             for (int xC = 0; xC < (1 << rc.log2TrafoSize); ++xC)
                 coeffsQ[(yC << rc.log2TrafoSize) + xC] = h[TransCoeffLevel(rc.x0, rc.y0, rc.cIdx, xC, yC)];
 
-        Raster<int16_t> quantizedCoefficients(coeffsQ, 1ull << rc.log2TrafoSize);
-        Raster<int16_t> coefficients(coeffs, 1ull << rc.log2TrafoSize);
-        Raster<int16_t> resSamples(res, 1ull << rc.log2TrafoSize);
-
-        ScalingMatrices::Type const matrix[32] = { 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16 };
-        Raster<ScalingMatrices::Type const> m(matrix, 0);
+        Raster<int16_t> quantizedCoefficients(coeffsQ, 1 << rc.log2TrafoSize);
+        Raster<int16_t> coefficients(coeffs, 1 << rc.log2TrafoSize);
+        Raster<int16_t> resSamples(res, 1 << rc.log2TrafoSize);
 
         Snake<BlockData>::Cursor *cursor = h;
         StateSpatial *stateSpatial = h;
@@ -447,7 +444,7 @@ struct Decode<residual_coding>
             ScalingMatrices *scalingMatrices = h;
             auto const sizeId = rc.log2TrafoSize - 2;
             auto const matrixId = ScalingMatrices::matrixId(sizeId, rc.cIdx, h[current(CuPredMode(rc.x0, rc.y0))]);
-            m = { scalingMatrices->getMatrix(sizeId, matrixId), 1ull << rc.log2TrafoSize };
+            Raster<ScalingMatrices::Type const> m(scalingMatrices->getMatrix(sizeId, matrixId), 1 << rc.log2TrafoSize );
             inverseQuantize(coefficients, quantizedCoefficients, m, rc.log2TrafoSize, qpState->getQp(rc.cIdx), bitDepth);
         }
         else

@@ -637,7 +637,7 @@ struct Read<DecodeTerminate<V>>
         CabacState &state = *static_cast<CabacState *>(h);
 
         state.ivlCurrRange -= 2;
-        const unsigned scaledRange = state.ivlCurrRange << 7;
+        auto const scaledRange = state.ivlCurrRange << 7;
 
         int binVal;
 
@@ -922,7 +922,7 @@ void optimisedReadResidualCoding(H &hParent)
 
     int escapeDataPresent = 0;
 
-    auto const &sp = scanPos<log2TrafoSize - 2>().lookup[h[scanIdx()]];
+    auto const &sp = scanPos<(log2TrafoSize - 2)>().lookup[h[scanIdx()]];
     auto const &sp2 = scanPos<2>().lookup[h[scanIdx()]];
     int &i = stateSubstream->i;
     for (i = lastSubBlock; i >= 0; i--)

@@ -1098,7 +1098,6 @@ struct payload_bit_equal_to_zero;
 
 template <class H> void Syntax<sei_payload>::go(sei_payload fun, H &h)
 {
-    StateEncode *stateEncode = h;
     if (h[nal_unit_type()] == 39 /*PREFIX_SEI_NUT*/)
     {
         if (fun.payloadType == 0)
@@ -1112,10 +1111,7 @@ template <class H> void Syntax<sei_payload>::go(sei_payload fun, H &h)
         else if (fun.payloadType == 4)
             h(user_data_registered_itu_t_t35(fun.payloadSize));
         else if (fun.payloadType == 5)
-        {
-            fun.payloadSize = 16 + stateEncode->userDataUnregMsgLen;
             h(user_data_unregistered(fun.payloadSize));
-        }
         else if (fun.payloadType == 6)
             h(recovery_point(fun.payloadSize));
         else if (fun.payloadType == 9)
