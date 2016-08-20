@@ -2622,8 +2622,13 @@ struct Read<CodedVideoSequence>
 
         while (!h[::Stop()] && h[::Stream()].state.pos < statePictures->posEndCvs)
         {
-            auto newPicture = h[NewPicture()];
-            auto hPicture = h.extend(newPicture.get());
+            auto& statePicturesConcrete = h[Concrete<StatePictures>()];
+
+            auto* newPicture = statePicturesConcrete.newPicture();
+
+            std::shared_ptr<StatePicture> statePicture(newPicture);
+
+            auto hPicture = h.extend(newPicture);
 
             hPicture[Active<Vps>()] = h[Active<Vps>()];
             hPicture[Active<Sps>()] = h[Active<Sps>()];

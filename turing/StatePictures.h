@@ -68,10 +68,6 @@ struct DpbClear {};
 template <> struct Syntax<DpbClear> : Null<DpbClear> { };
 
 
-// Request a newly allocated picture: this will be returned as a std::shared_ptr<S> where S is derived from StatePicture
-struct NewPicture {};
-
-
 static inline bool comparePicOrderCntVal(std::shared_ptr<StatePicture> a, std::shared_ptr<StatePicture> b)
 {
     return (*a)[PicOrderCntVal()] < (*b)[PicOrderCntVal()];
@@ -211,6 +207,11 @@ struct StatePictures :
     StatePicturesBase
 {
     std::array<std::shared_ptr<StatePicture>, 16> RefPicSetStCurrBefore, RefPicSetStCurrAfter, RefPicSetLtCurr;
+
+    StatePicture* newPicture()
+    {
+        return new StatePicture;
+    }
 
     // Decoding process for picture order count
     template <class H>
@@ -913,29 +914,23 @@ template <> struct Syntax<PictureBegin>
 
         statePicture->loopFilterPicture.reset(new LoopFilter::Picture(h));
     }
-};
 
-
-template <class Verb, class Tuple>
-struct HandleValue<NewPicture, Verb, Tuple>
-{
-    typedef std::shared_ptr<StatePicture> Type;
-    template <class H> static Type get(NewPicture, H &)
+    StatePicture *newPicture()
     {
-        return Type{ new StatePicture };
+        return new StatePicture;
     }
 };
 
 
 template <class H> void Syntax<PictureGenerate>::go(PictureGenerate pg, H &h)
 {
-    StatePictures *statePictures = h;
-
-    std::shared_ptr<StatePicture> statePicture = h[NewPicture()];
+    auto&statePicturesConcrete = h[Concrete<StatePictures>()];
+    auto* newPicture = statePicturesConcrete.newPicture();
+    std::shared_ptr<StatePicture> statePicture(newPicture);
 
     (*statePicture)[PicOrderCntVal()] = pg.poc;
 
-    statePictures->setupDecodedPicture(statePicture.get(), h);
+    statePicturesConcrete.setupDecodedPicture(newPicture, h);
 
     statePicture->reference = pg.reference;
     statePicture->neededForOutput = false;
