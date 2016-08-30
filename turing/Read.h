@@ -411,21 +411,6 @@ struct Read<Element<V, se>>
 };
 
 
-template <>
-struct Read<sei_message>
-{
-    template <class H> static void go(const sei_message &f, H &h)
-    {
-        const char *streamTypePrevious = static_cast<StatePicturesBase *>(h)->streamType;
-        static_cast<StatePicturesBase *>(h)->streamType = StatePicturesBase::streamTypeSei();
-
-        Syntax<sei_message>::go(f, h);
-
-        static_cast<StatePicturesBase *>(h)->streamType = streamTypePrevious;
-    }
-};
-
-
 template <class H, class V>
 struct GetCtxInc
 {

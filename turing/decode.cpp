@@ -125,9 +125,3 @@ int decode(int argc, const char* const argv[], std::ostream &cout, std::ostream 
 
     return 0;
 }
-
-
-int dpbIndexPlus1(struct StatePicture *p, int refList, int refIdx)
-{
-    return p->dpbIndexPlus1[refList][refIdx];
-}
