@@ -95,7 +95,7 @@ struct StatePicturesBase
     std::vector<int> FollDeltaPocMsbPresentFlag;
 
     uint64_t sequenceDecodeOrder;
-    size_t posEndCvs;
+    size_t auEndCvs;
 
     bool sliceHeaderValid;
     int sliceNalUnitType;
@@ -119,8 +119,8 @@ struct StatePicturesBase
     };
     PrevTid0Pic prevTid0Pic;
 
-    typedef int CodedVideoSequenceId;
-    CodedVideoSequenceId codedVideoSequenceId;
+    int codedVideoSequenceId;
+    int accessUnitId;
 
     int NoRaslOutputFlag;
 

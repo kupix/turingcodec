@@ -2603,9 +2603,10 @@ struct Read<CodedVideoSequence>
         h[Active<Vps>()].reset();
 
         ++statePictures->codedVideoSequenceId;
-        statePictures->posEndCvs = h[::Stream()].len;
+        statePictures->accessUnitId = 0;
+        statePictures->auEndCvs = std::numeric_limits<size_t>::max();
 
-        while (!h[::Stop()] && h[::Stream()].state.pos < statePictures->posEndCvs)
+        while (!h[::Stop()] && h[::Stream()].state.pos < h[::Stream()].len && statePictures->accessUnitId < statePictures->auEndCvs)
         {
             auto& statePicturesConcrete = h[Concrete<StatePictures>()];
 
@@ -2688,6 +2689,7 @@ struct Read<AccessUnit>
                 break;
             }
             const bool firstSliceSegmentInPicture = isSliceSegment(h[nal_unit_type()]) && h[first_slice_segment_in_pic_flag()];
+
             if (firstSliceSegmentInPicture)
             {
                 size_t startPos = 0;
@@ -2702,25 +2704,20 @@ struct Read<AccessUnit>
                         NalUnitInfo info(h[::Stream()]);
 
                         if (!startPos && (info.firstSliceSegment || startsNewAccessUnit(info.nal_unit_type)))
-                        {
                             startPos = info.pos;
-                        }
 
                         if (info.firstSliceSegment)
                         {
                             posNextAu = startPos;
 
                             if (isIdr(info.nal_unit_type) || isBla(info.nal_unit_type) || seenEos)
-                            {
-                                static_cast<StatePicturesBase *>(h)->posEndCvs = posNextAu;
-                            }
+                                statePicturesBase->auEndCvs = statePicturesBase->accessUnitId + 1;
 
                             break;
                         }
 
-                        {
-                            if (info.nal_unit_type == EOS_NUT) seenEos = true;
-                        }
+                        if (info.nal_unit_type == EOS_NUT) 
+                            seenEos = true;
                     }
                 }
                 catch (ExceptionOverrun &)
@@ -2730,10 +2727,10 @@ struct Read<AccessUnit>
         }
 
         if (statePicturesBase->sliceHeaderValid)
-        {
             h(PictureDone());
-        }
-    };
+
+        statePicturesBase->accessUnitId++;
+    }
 };
 
 
