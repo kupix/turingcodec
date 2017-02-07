@@ -76,6 +76,7 @@ template <> struct Decode<PictureBegin>
     template <class H> static void go(PictureBegin pb, H &h)
     {
         Syntax<PictureBegin>::go(pb, h);
+
         if (h[BitDepthY()] > 8 || h[BitDepthC()] > 8)
             inner<uint16_t>(h);
         else

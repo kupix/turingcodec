@@ -886,7 +886,7 @@ template <class H> void Syntax<PictureGenerate>::go(PictureGenerate pg, H &h)
     statePicturesConcrete.setupDecodedPicture(newPicture, h);
 
     statePicture->reference = pg.reference;
-    statePicture->neededForOutput = pg.missing;
+    statePicture->neededForOutput = false;
     statePicture->reconstructed = true;
     statePicture->generatedUnavailable = !pg.missing;
     statePicture->missing = pg.missing;
