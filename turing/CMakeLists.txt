@@ -117,7 +117,7 @@ add_library(turing
     SCDetection.cpp
     TaskDeblock.cpp 
     testdecode.cpp 
-	TaskSao.cpp 
+    TaskSao.cpp 
     Aps.h
     Binarization.h
     BitField.h
@@ -134,7 +134,7 @@ add_library(turing
     DecodedPicture.h
     Dsp.h
     Encoder.h
-	EncSao.h
+    EncSao.h
     EstimateRate.h
     EstimateIntraComplexity.h
     FixedPoint.h
@@ -193,7 +193,7 @@ add_library(turing
     SyntaxRbsp.hpp
     SyntaxSei.h
     TaskDeblock.h
-	TaskSao.h
+    TaskSao.h
     TaskEncodeInput.h
     TaskEncodeOutput.h
     TaskEncodeSubstream.h
