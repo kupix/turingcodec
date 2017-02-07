@@ -174,8 +174,9 @@ int quantize_c(short *dst, const short *src, int quantiserScale, int quantiserSh
 
 struct ReconstructIntraBlock
 {
-    template <class H> static void go(residual_coding const &rc, H h)
+    template <class H, class V> static void go(IfCbf<V, residual_coding> const &i, H h)
     {
+        residual_coding const &rc = i.f;
         using Sample = typename SampleType<H>::Type;
 
         StateReconstructionCache<Sample> *stateReconstructionCache = h;
@@ -581,8 +582,9 @@ template <> struct ReconstructIntraChroma<IfCbf<cbf_cr, residual_coding>> : Reco
 
 struct PredictIntraLumaBlock
 {
-    template <class H> static void go(residual_coding const &rc, H h)
+    template <class H, class V> static void go(IfCbf<V, residual_coding> const &i, H h)
     {
+        residual_coding const &rc = i.f;
         using Sample = typename SampleType<H>::Type;
 
         StateEncodeSubstream<Sample> *stateEncodeSubstream = h;
