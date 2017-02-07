@@ -32,7 +32,7 @@ For more information, contact us at info @ turingcodec.org.
 #if defined(_DEBUG)
 // When SNAKE_DEBUG is set, each entry has an associated diagonal position that can be used to check
 // the location of the snake is as expected.
-# define SNAKE_DEBUG
+//# define SNAKE_DEBUG
 #endif
 
 

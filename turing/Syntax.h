@@ -233,12 +233,12 @@ struct Syntax<pcm_sample>
 };
 
 
-template <class V, class F>
-struct Syntax<IfCbf<V, F>>
+template <class V, class F> struct Syntax<IfCbf<V, F>>
 {
-    template <class H> static void go(const IfCbf<V, F> &f, H &h)
+    template <class H> static void go(IfCbf<V, F> const &f, H &h)
     {
-        if (h[f.cbf]) h(f.f);
+        if (h[f.cbf]) 
+            h(f.f);
     }
 };
 

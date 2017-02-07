@@ -1065,21 +1065,15 @@ struct interSplitFlag { };
 DEFINE_STRUCT_ARITY_3(split_transform_flag, x0, y0, trafoDepth )
 
 template <class H>
-int infer(split_transform_flag e, H &h)
+int infer(split_transform_flag stf, H &h)
 {
-    const transform_tree &tt = *static_cast<transform_tree *>(h);
-    if (tt.log2TrafoSize > h[MaxTbLog2SizeY()])
-    {
+    transform_tree const *tt = h;
+    if (tt->log2TrafoSize > h[MaxTbLog2SizeY()])
         return 1;
-    }
-    if (h[IntraSplitFlag()] == 1 && e.trafoDepth == 0)
-    {
+    if (h[IntraSplitFlag()] == 1 && stf.trafoDepth == 0)
         return 1;
-    }
     if (h[interSplitFlag()] == 1)
-    {
         return 1;
-    }
     return 0;
 }
 
@@ -1191,7 +1185,6 @@ struct IfCbf
 {
     V cbf;
     F f;
-    operator F() const { return this->f; }
 };
 
 DEFINE_STRUCT_ARITY_3(transform_skip_flag, x0, y0, cIdx);

@@ -106,6 +106,7 @@ template <class H> void Read<pic_timing>::go(pic_timing f, H &h)
     }
     else
     {
+        Violation("D.3.3", "cannot parse pic_timing() without applicable hrd_parameters()");
         // Seek to end of SEI payload so as not to trigger a further error
         seek(h, bitLen(h[::Stream()]));
     }

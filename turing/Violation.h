@@ -26,7 +26,7 @@ For more information, contact us at info @ turingcodec.org.
 #include <string>
 #include <map>
 
-#ifdef HAVE_BOOST
+#ifdef HAVE_BOOST_FORMAT
     #ifdef __INTEL_COMPILER
 // boost_1_55_0\boost/format/alt_sstream.hpp(65): warning #809: exception specification for virtual function "boost::io::basic_altstringbuf<Ch, Tr, Alloc>::~basic_altstringbuf [with Ch=char, Tr=std::char_traits<char>, Alloc=std::allocator<char>]" is incompatible with that of overridden function "std::basic_streambuf<_Elem, _Traits>::~basic_streambuf [with _Elem=char, _Traits=std::char_traits<char>]"
         #pragma warning disable 809

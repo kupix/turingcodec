@@ -42,11 +42,6 @@ For more information, contact us at info @ turingcodec.org.
 #include <fstream>
 
 
- // review: shouldn't be here
-template <class F>
-struct Decode;
-
-
 // checks just-decoded element value, may throw Abort if it's bad
 template <class V, class H, class Enable = void>
 struct ReadCheck
@@ -83,8 +78,8 @@ static std::ofstream &flog()
 
 struct CabacState
 {
-    int ivlCurrRange = -8;
-    int bitsNeeded = 510;
+    int ivlCurrRange = 510;
+    int bitsNeeded = -8;
     int ivlOffset = 0;
 };
 
@@ -117,22 +112,6 @@ struct Read<CabacRestart>
 
 
 template <>
-struct Read<rbsp_slice_segment_trailing_bits>
-{
-    template <class H> static void go(const rbsp_slice_segment_trailing_bits &s, H &h)
-    {
-        if (isRasl(h[nal_unit_type()]) && static_cast<StatePicturesBase *>(h)->NoRaslOutputFlag)
-        {
-            // associated IRAP picture has NoRaslOutputFlag equal to 1, the RASL picture is not output and may not be correctly decodable
-            return;
-        }
-
-        Syntax<rbsp_slice_segment_trailing_bits>::go(s, h);
-    }
-};
-
-
-template <>
 struct Read<coding_tree_unit>
 {
     template <class H> static void go(const coding_tree_unit &s, H &h);
@@ -149,12 +128,16 @@ static T bitPos(BitReader& bitReader)
         m >>= 1;
         ++pos;
     }
-    if (!std::is_integral<T>::value)
-    {
-        assert(0);
-    }
     return pos + static_cast<T>(8 * (bitReader.state.p - bitReader.begin));
 };
+
+
+template <typename T>
+static T bitLen(BitReader& bitReader)
+{
+    return static_cast<T>(8 * (bitReader.end - bitReader.begin));
+};
+
 
 
 
@@ -191,7 +174,7 @@ namespace {
 namespace {
 
     template <class Stream>
-    size_t numBytesInNalUnitSimple(Stream& stream)
+    int numBytesInNalUnitSimple(Stream& stream)
     {
         typename Stream::Bookmark mark(stream);
 
@@ -220,20 +203,20 @@ namespace {
         }
         catch (ExceptionOverrun &)
         {
-            return bitLen(stream) / 8 - pos1;
+            return static_cast<int>(bitLen(stream) / 8 - pos1);
         }
 
-        return bitPos<int>(stream) / 8 - pos1;
+        return static_cast<int>(bitPos<int>(stream) / 8 - pos1);
     }
 
     template <class Stream>
-    size_t numBytesInNalUnit(Stream& stream)
+    int numBytesInNalUnit(Stream& stream)
     {
         return numBytesInNalUnitSimple(stream);
     }
 
     template <>
-    size_t numBytesInNalUnit<StreamReader>(StreamReader& stream)
+    int numBytesInNalUnit<StreamReader>(StreamReader& stream)
     {
         if (stream.codeCache)
         {
@@ -243,33 +226,44 @@ namespace {
     }
 
     template <class Stream>
-    void gotoNextStartCode(Stream &stream)
+    bool gotoNextStartCode(Stream &stream)
     {
+        if (stream.bytesRemaining() < 3)
+            return true;
         while (stream.nextBytes(3) > 0x000001)
         {
+            if (stream.bytesRemaining() < 4)
+                return true;
             stream.readBytes(1);
         }
+        return false;
     }
 
 
     template <>
-    void gotoNextStartCode<StreamReader>(StreamReader& stream)
+    bool gotoNextStartCode<StreamReader>(StreamReader& stream)
     {
         if (!stream.codeCache)
         {
+            if (stream.bytesRemaining() < 3)
+                return true;
             while (stream.nextBytes(3) > 0x000001)
             {
+                if (stream.bytesRemaining() < 4)
+                    return true;
                 stream.readBytes(1);
             }
-            return;
+            return false;
         }
 
         stream.adjustCodeIt(true);
-        while (stream.codeIt != stream.codeCache->codes.end() && stream.codeIt->byte > 1) ++stream.codeIt;
+        while (stream.codeIt != stream.codeCache->codes.end() && stream.codeIt->byte > 1) 
+            ++stream.codeIt;
 
         if (stream.codeIt == stream.codeCache->codes.end())
         {
             seekStream(stream, bitLen(stream));
+            return true;
         }
         else
         {
@@ -279,6 +273,7 @@ namespace {
                 position += stream.codeIt->numberOfZeroes - 3;
             }
             seekStream(stream, 8 * size_t(position));
+            return false;
         }
     }
 
@@ -412,21 +407,6 @@ struct Read<Element<V, se>>
 
         h[fun.v] = t;
         ReadCheck<V, H>::go(fun.v, h, t);
-    }
-};
-
-
-template <>
-struct Read<sei_message>
-{
-    template <class H> static void go(const sei_message &f, H &h)
-    {
-        const char *streamTypePrevious = static_cast<StatePicturesBase *>(h)->streamType;
-        static_cast<StatePicturesBase *>(h)->streamType = StatePicturesBase::streamTypeSei();
-
-        Syntax<sei_message>::go(f, h);
-
-        static_cast<StatePicturesBase *>(h)->streamType = streamTypePrevious;
     }
 };
 
@@ -637,7 +617,7 @@ struct Read<DecodeTerminate<V>>
         CabacState &state = *static_cast<CabacState *>(h);
 
         state.ivlCurrRange -= 2;
-        const unsigned scaledRange = state.ivlCurrRange << 7;
+        auto const scaledRange = state.ivlCurrRange << 7;
 
         int binVal;
 
@@ -743,7 +723,6 @@ struct Read<coding_unit>
             // Commit the 4th partition to the snake.
             const int size = 1 << cqt->log2CbSize >> 1;
             cursor->commit(Turing::Rectangle{ cqt->x0 + size, cqt->y0 + size, size, size }, neighbourhood->MinCbLog2SizeYMinus1);
-            //std::cout << "commit " << cqt->x0 + size << ", " << cqt->y0 + size << ", " << size << ", " << size << "\n";
         }
 
         commitCu(h, *cqt);
@@ -787,10 +766,7 @@ struct Read<pcm_sample>
 {
     template <class H> static void go(const pcm_sample &fun, H &h)
     {
-        StatePicturesBase *statePicturesBase = h;
-        statePicturesBase->streamType = StatePicturesBase::streamTypeRbsp();
         Syntax<pcm_sample>::go(fun, h);
-        statePicturesBase->streamType = StatePicturesBase::streamTypeCabac();
         h(CabacRestart());
     }
 };
@@ -862,7 +838,7 @@ struct Access<coded_sub_block_flag, ResidualCodingStateOptimised<log2TrafoSize>>
 };
 
 
-template <int log2TrafoSize, class H>
+template <int log2TrafoSize, class H, bool decodeCoefficients>
 void optimisedReadResidualCoding(H &hParent)
 {
     ResidualCodingStateOptimised<log2TrafoSize> residualCodingState(hParent);
@@ -872,7 +848,7 @@ void optimisedReadResidualCoding(H &hParent)
     residual_coding *rc = h;
     assert(rc->log2TrafoSize == log2TrafoSize);
 
-    if (std::is_same<typename H::Tag, Decode<void>>::value)
+    if (decodeCoefficients)
     {
         const int sizeC = 1 << rc->log2TrafoSize;
         for (int yC = 0; yC < sizeC; ++yC)
@@ -922,7 +898,7 @@ void optimisedReadResidualCoding(H &hParent)
 
     int escapeDataPresent = 0;
 
-    auto const &sp = scanPos<log2TrafoSize - 2>().lookup[h[scanIdx()]];
+    auto const &sp = scanPos<(log2TrafoSize - 2)>().lookup[h[scanIdx()]];
     auto const &sp2 = scanPos<2>().lookup[h[scanIdx()]];
     int &i = stateSubstream->i;
     for (i = lastSubBlock; i >= 0; i--)
@@ -970,13 +946,11 @@ void optimisedReadResidualCoding(H &hParent)
             residualCodingState.absoluteCoefficients[residualCodingState.nSigCoeffs] = h[sig_coeff_flag(c.x, c.y)];
             inferSbDcSigCoeffFlag &= !h[sig_coeff_flag(c.x, c.y)];
             int mask = -h[sig_coeff_flag(c.x, c.y)];
-            //if (std::is_same<typename H::Tag, Decode<void>>::value)
             residualCodingState.nn[residualCodingState.nSigCoeffs] = n;
             residualCodingState.coeffPositions[residualCodingState.nSigCoeffs] = c;
             residualCodingState.nSigCoeffs += h[sig_coeff_flag(c.x, c.y)];
         }
         residualCodingState.absoluteCoefficients[residualCodingState.nSigCoeffs] = 1;
-        //if (std::is_same<typename H::Tag, Decode<void>>::value)
         residualCodingState.nn[residualCodingState.nSigCoeffs] = 0;
         residualCodingState.coeffPositions[residualCodingState.nSigCoeffs] = s2;
         residualCodingState.nSigCoeffs += inferSbDcSigCoeffFlag;
@@ -1073,7 +1047,7 @@ void optimisedReadResidualCoding(H &hParent)
         mm = -residualCodingState.nSigCoeffs + signHidden;
         do
         {
-            int n = std::is_same<typename H::Tag, Decode<void>>::value ? pnn[mm - signHidden] : -1;
+            int n = decodeCoefficients ? pnn[mm - signHidden] : 0;
             h(coeff_sign_flag(n), ae(v));
         } while (++mm);
 
@@ -1091,7 +1065,7 @@ void optimisedReadResidualCoding(H &hParent)
             }
         } while (++mm);
 
-        if (std::is_same<typename H::Tag, Decode<void>>::value)
+        if (decodeCoefficients)
         {
             int sumAbsLevel = 0;
             mm = -residualCodingState.nSigCoeffs;
@@ -1121,16 +1095,16 @@ void optimisedReadResidualCoding(H &hParent)
 template <>
 struct Read<residual_coding>
 {
-    template <class H> static void go(const residual_coding &rc, H &hParent)
+    template <class H, bool decodeCoefficients=false> static void go(const residual_coding &rc, H &hParent)
     {
         static void(*const read[6])(H &) =
         {
             0,
             0,
-            optimisedReadResidualCoding<2, H>,
-            optimisedReadResidualCoding<3, H>,
-            optimisedReadResidualCoding<4, H>,
-            optimisedReadResidualCoding<5, H>,
+            optimisedReadResidualCoding<2, H, decodeCoefficients>,
+            optimisedReadResidualCoding<3, H, decodeCoefficients>,
+            optimisedReadResidualCoding<4, H, decodeCoefficients>,
+            optimisedReadResidualCoding<5, H, decodeCoefficients>,
         };
         read[rc.log2TrafoSize](hParent);
      }
@@ -1368,11 +1342,7 @@ void setIntraPartition(H &h, V &v, Turing::Rectangle &partition, int8_t mode, in
     {
         Snake<BlockData>::Array<32, 32, 0, 0> *snakeArrayCuCip = h;
         snakeArrayCuCip->resize(*cqt, h[MinCbLog2SizeY()] - 1);
-        //std::cout << *cqt << " a\n";
-        //neighbourhood->snake.print(std::cout, *cqt, neighbourhood->MinCbLog2SizeYMinus1);
         snakeArrayCuCip->copyBlockFrom(neighbourhood->snake, before, *cqt, neighbourhood->MinCbLog2SizeYMinus1, 0, 0);
-        //std::cout << *cqt << " b\n";
-        //snakeArrayCuCip->print(std::cout, *cqt, neighbourhood->MinCbLog2SizeYMinus1);
     }
 
     Snake<BlockData>::Cursor *cursor = h;
@@ -2003,10 +1973,6 @@ struct Read < Element<cu_chroma_qp_offset_flag, ae> >
     template <class H> static void go(Element<cu_chroma_qp_offset_flag, ae> fun, H &h)
     {
         transform_tree *tt = h;
-        if (h[PicOrderCntVal()] == 4 && tt->x0 == 888 && tt->y0 == 160)
-        {
-            std::cout << "\n";
-        }
 
         int binVal;
         h(DecodeDecision<cu_chroma_qp_offset_flag>(&binVal, 0));
@@ -2582,7 +2548,7 @@ struct Read<Element<coeff_abs_level_remaining, ae>>
 };
 
 
-struct UnexpectedData { };
+DEFINE_STRUCT_ARITY_1(UnexpectedData, bytes);
 
 
 // Eats all remaining data in stream
@@ -2634,12 +2600,18 @@ struct Read<CodedVideoSequence>
         h[Active<Vps>()].reset();
 
         ++statePictures->codedVideoSequenceId;
-        statePictures->posEndCvs = h[::Stream()].len;
+        statePictures->accessUnitId = 0;
+        statePictures->auEndCvs = std::numeric_limits<size_t>::max();
 
-        while (!h[::Stop()] && h[::Stream()].state.pos < statePictures->posEndCvs)
+        while (!h[::Stop()] && h[::Stream()].state.pos < h[::Stream()].len && statePictures->accessUnitId < statePictures->auEndCvs)
         {
-            auto newPicture = h[NewPicture()];
-            auto hPicture = h.extend(newPicture.get());
+            auto& statePicturesConcrete = h[Concrete<StatePictures>()];
+
+            auto* newPicture = statePicturesConcrete.newPicture();
+
+            std::shared_ptr<StatePicture> statePicture(newPicture);
+
+            auto hPicture = h.extend(newPicture);
 
             hPicture[Active<Vps>()] = h[Active<Vps>()];
             hPicture[Active<Sps>()] = h[Active<Sps>()];
@@ -2656,33 +2628,43 @@ struct Read<CodedVideoSequence>
 struct NalUnitInfo
 {
     template <class Stream>
-    NalUnitInfo(Stream &stream)
+    NalUnitInfo(Stream &stream, bool startcode = true)
     {
-        gotoNextStartCode(stream);
-
-        this->pos = bitPos<size_t>(stream) / 8;
-
-        if (stream.readBytes(3) == 0x000000)
+        if (startcode)
         {
-            stream.readBytes(1);
+            bool notFound = gotoNextStartCode(stream);
+            if (notFound)
+                return;
+
+            this->pos = bitPos<size_t>(stream) / 8;
+
+            if (stream.bytesRemaining() < 5)
+                return;
+
+            if (stream.readBytes(3) == 0x000000)
+            {
+                if (stream.bytesRemaining() < 3)
+                    return;
+
+                stream.readBytes(1);
+            }
         }
 
-        // simple nal_unit_header() lookahead
+        // simple nal_unit_header() parse
         this->nal_unit_type = (stream.readBytes(2) >> 9) & 0x3f;
 
         if (isSliceSegment(this->nal_unit_type))
         {
-            const bool first_slice_segment_in_pic_flag = !!(stream.byte() & 0x80);
+            auto const first_slice_segment_in_pic_flag = !!(stream.byte() & 0x80);
             this->firstSliceSegment = first_slice_segment_in_pic_flag;
         }
-        else
-        {
-            this->firstSliceSegment = false;
-        }
+
+        this->overrun = false;
     }
     int nal_unit_type;
-    bool firstSliceSegment;
+    bool firstSliceSegment = false;
     size_t pos;
+    bool overrun = true;
 };
 
 
@@ -2695,17 +2677,15 @@ struct Read<AccessUnit>
         statePicturesBase->sliceHeaderValid = false;
 
         size_t posNextAu = bitLen(h[::Stream()]) / 8;
-        while (h[Position<Bytes<>>()] < posNextAu)
+        while (h[Position<Bytes<>>()] < posNextAu && !h[Stop()])
         {
             try
             {
-                const size_t NumBytesInNalUnit = numBytesInNalUnit(h[::Stream()]);
-                h(byte_stream_nal_unit(boost::numeric_cast<int>(NumBytesInNalUnit)));
+                auto const NumBytesInNalUnit = numBytesInNalUnit(h[::Stream()]);
+                h(byte_stream_nal_unit(NumBytesInNalUnit));
             }
-            catch (boost::numeric::bad_numeric_cast &)
+            catch (ExceptionOverrun &)
             {
-                h(Violation("7", "NAL unit too large"));
-                h[Stop()] = 1;
                 break;
             }
             catch (Abort &)
@@ -2714,6 +2694,7 @@ struct Read<AccessUnit>
                 break;
             }
             const bool firstSliceSegmentInPicture = isSliceSegment(h[nal_unit_type()]) && h[first_slice_segment_in_pic_flag()];
+
             if (firstSliceSegmentInPicture)
             {
                 size_t startPos = 0;
@@ -2727,39 +2708,38 @@ struct Read<AccessUnit>
                     {
                         NalUnitInfo info(h[::Stream()]);
 
+                        if (info.overrun)
+                            break;
+
                         if (!startPos && (info.firstSliceSegment || startsNewAccessUnit(info.nal_unit_type)))
-                        {
                             startPos = info.pos;
-                        }
 
                         if (info.firstSliceSegment)
                         {
                             posNextAu = startPos;
 
                             if (isIdr(info.nal_unit_type) || isBla(info.nal_unit_type) || seenEos)
-                            {
-                                static_cast<StatePicturesBase *>(h)->posEndCvs = posNextAu;
-                            }
+                                statePicturesBase->auEndCvs = statePicturesBase->accessUnitId + 1;
 
                             break;
                         }
 
-                        {
-                            if (info.nal_unit_type == EOS_NUT) seenEos = true;
-                        }
+                        if (info.nal_unit_type == EOS_NUT) 
+                            seenEos = true;
                     }
                 }
                 catch (ExceptionOverrun &)
                 {
+                    assert(false);
                 }
             }
         }
 
         if (statePicturesBase->sliceHeaderValid)
-        {
             h(PictureDone());
-        }
-    };
+
+        statePicturesBase->accessUnitId++;
+    }
 };
 
 
@@ -3101,6 +3081,21 @@ struct Read<short_term_ref_pic_set>
     }
 };
 
+template <>
+struct Read<slice_segment_layer_rbsp>
+{
+    template <class H> static void go(slice_segment_layer_rbsp v, H &h)
+    {
+        try
+        {
+            Syntax<slice_segment_layer_rbsp>::go(v, h);
+        }
+        catch (Abort)
+        {
+            Greedy<slice_segment_layer_rbsp>::go(v, h);
+        }
+    }
+};
 
 template <>
 struct Read<slice_segment_header>
@@ -3169,9 +3164,6 @@ struct Read<slice_segment_data>
         if (h[ContainerOf<CtbAddrRsToTs>()].empty()) 
             throw Abort();
 
-        StatePicturesBase *statePicturesBase = h;
-        statePicturesBase->streamType = StatePicturesBase::streamTypeCabac();
-
         StateSubstream stateSubstream(h);
         auto h2 = h.extend(&stateSubstream);
 
@@ -3189,21 +3181,13 @@ struct Read<slice_segment_data>
         CabacState *cabacState = h2;
         cabacState->ivlCurrRange = 510;
 
-        if (isRasl(h2[nal_unit_type()]) && statePicturesBase->NoRaslOutputFlag)
-        {
-            // associated IRAP picture has NoRaslOutputFlag equal to 1, the RASL picture is not output and may not be correctly decodable
-            Greedy<slice_segment_data>::go(fun, h2);
-        }
-        else
-            Syntax<slice_segment_data>::go(fun, h2);
+        Syntax<slice_segment_data>::go(fun, h2);
 
         if (h2[dependent_slice_segments_enabled_flag()])
             h2(ContextsSave(tablesDs));
 
         h[CtbAddrInTs()] = h2[CtbAddrInTs()];
         h[QpY()] = h2[QpY()];
-
-        statePicturesBase->streamType = StatePicturesBase::streamTypeRbsp();
     }
 };
 

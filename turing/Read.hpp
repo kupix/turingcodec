@@ -34,7 +34,6 @@ struct NextBits<T, H>
     {
         auto& stream = h[Stream()];
         typename Access<Stream, H>::SetType::Bookmark mark(stream);
-        assert(bitPos<int>(stream) <= (int)bitLen(stream));
         T returnValue = 0;
         if (aligned)
         {
@@ -75,6 +74,7 @@ void Read<nal_unit>::go(const nal_unit &e, H &h2)
         return;
 
     StateRbspData *stateRbspData = h2;
+    StatePicturesBase *statePicturesBase = h2;
 
     auto &rbspData = stateRbspData->rbspData;
 
@@ -101,7 +101,6 @@ void Read<nal_unit>::go(const nal_unit &e, H &h2)
 
     h[::Stream()] = BitReader(rbspData.data(), rbspData.data() + rbspData.size());
 
-    static_cast<StatePicturesBase *>(h)->streamType = StatePicturesBase::streamTypeRbsp();
     try
     {
         switch (h[nal_unit_type()])
@@ -127,10 +126,8 @@ void Read<nal_unit>::go(const nal_unit &e, H &h2)
 
     if (h[::Stream()].state.p != h[::Stream()].end)
     {
-        h(UnexpectedData());
+        h(UnexpectedData(static_cast<int>(h[::Stream()].end - h[::Stream()].state.p)));
     }
-
-    static_cast<StatePicturesBase *>(h)->streamType = StatePicturesBase::streamTypeNal();
 }
 
 

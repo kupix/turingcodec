@@ -271,7 +271,7 @@ struct Derive <V, H, typename std::enable_if<Fixed<V>::value == Fixed<V>::value>
 
         static void set(V, Type x, H &h)
         {
-            assert(x == Fixed<V>::value);
+            //assert(x == Fixed<V>::value);
         }
     };
 

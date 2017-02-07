@@ -101,7 +101,7 @@ void ScalingMatrices::initialise(ScalingListState *scalingListState)
                         h[scaling_list_dc_coef_minus8(sizeId - 2, matrixId)] = h[ScalingList(sizeId, matrixId, 0)] - 8;
                     }
                 }
-                else
+                else if (h[scaling_list_pred_matrix_id_delta(sizeId, matrixId)] <= matrixId)
                 {
                     // the scaling list is inferred from the reference scaling list as follows
                     const int refMatrixId = matrixId - h[scaling_list_pred_matrix_id_delta(sizeId, matrixId)];
@@ -117,11 +117,6 @@ void ScalingMatrices::initialise(ScalingListState *scalingListState)
                     }
                 }
 
-            }
-            for (int i = 0; i < coefNum(sizeId); ++i)
-            {
-                assert(h[ScalingList(sizeId, matrixId, i)] >= 0);
-                assert(h[ScalingList(sizeId, matrixId, i)] <= 255);
             }
         }
     }

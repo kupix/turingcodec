@@ -237,6 +237,7 @@ struct Read<sei_payload>
         if (f.payloadSize > rbspBytes)
         {
             h(Violation("7.4.6", "sei_payload()'s payloadSize{%1%} is greater than number of available RBSP bytes {%2%}") % f.payloadSize % rbspBytes);
+            stream.state.p = stream.end;
             return;
         }
 
@@ -248,8 +249,6 @@ struct Read<sei_payload>
         auto &h2 = h;
         *static_cast<sei_payload *>(h2) = f;
 
-        const char *streamTypePrevious = static_cast<StatePicturesBase *>(h)->streamType;
-        static_cast<StatePicturesBase *>(h)->streamType = StatePicturesBase::streamTypeSei();
         try
         {
             Syntax<sei_payload>::go(f, h2);
@@ -261,8 +260,6 @@ struct Read<sei_payload>
         catch (Abort &)
         {
         }
-
-        static_cast<StatePicturesBase *>(h)->streamType = streamTypePrevious;
 
         streamCopy.state.p = h[::Stream()].end;
         streamCopy.state.mask = 0x80;

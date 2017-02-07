@@ -120,7 +120,8 @@ struct StatePicture :
         int PicLatencyCount;
         int PicOutputFlag;
         bool generatedUnavailable;
-        bool reconstructed;
+        bool missing = false; // true if "no reference picture"
+        bool reconstructed; // review: only used by encoder
         std::uint64_t sequenceDecodeOrder;
         int notionalPositionInDpb;
         int n;

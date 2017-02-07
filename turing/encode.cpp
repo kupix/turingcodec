@@ -527,7 +527,7 @@ int encode(int argc, const char* const argv[])
             if (encoder->vm["shot-change"].as<bool>())
             {
                 int bitdepth = encoder->vm.at("bit-depth").as<int>();
-                ShotChangeDetection sc(encoder->inputFilename.c_str(), bitdepth, encoder->encoder->frameWidth, encoder->encoder->frameHeight, (int)encoder->bytesPerInputFrame(), firstFrame, (int)nFrames);
+                ShotChangeDetection sc(encoder->inputFilename.c_str(), bitdepth, encoder->encoder->frameWidth, encoder->encoder->frameHeight, (int)encoder->bytesPerInputFrame(), (int)firstFrame, (int)nFrames);
                 std::vector<int> shotChangeList;
                 ifstream ifs("shotChangeLog.txt", ios::in);
                 if(ifs)

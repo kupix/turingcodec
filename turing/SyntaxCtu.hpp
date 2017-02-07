@@ -246,15 +246,13 @@ void Syntax<coding_unit>::go(const coding_unit &cu, H &h)
 
         if (!h[current(pcm_flag(cu.x0, cu.y0))])
         {
-            if (h[current(CuPredMode(cu.x0, cu.y0))] != MODE_INTRA &&
-                    !(h[PartMode()] == PART_2Nx2N && h[merge_flag(cu.x0, cu.y0)]))
-            {
+            if (h[current(CuPredMode(cu.x0, cu.y0))] != MODE_INTRA && !(h[PartMode()] == PART_2Nx2N && h[merge_flag(cu.x0, cu.y0)]))
                 h(rqt_root_cbf(), ae(v));
-            }
 
-            h[MaxTrafoDepth()] = (h[current(CuPredMode(cu.x0, cu.y0))] == MODE_INTRA)
-                        ? h[max_transform_hierarchy_depth_intra()] + h[IntraSplitFlag()]
-                                                                       : h[max_transform_hierarchy_depth_inter()];
+            h[MaxTrafoDepth()] 
+                = (h[current(CuPredMode(cu.x0, cu.y0))] == MODE_INTRA)
+                ? h[max_transform_hierarchy_depth_intra()] + h[IntraSplitFlag()]
+                : h[max_transform_hierarchy_depth_inter()];
 
             h(IfCbf<rqt_root_cbf, transform_tree>{ rqt_root_cbf(), transform_tree(cu.x0, cu.y0, cu.x0, cu.y0, cu.log2CbSize, 0, 0) });
         }
@@ -403,9 +401,6 @@ void Syntax<mvd_coding>::go(const mvd_coding &e, H &h)
 }
 
 
-template <class> struct Decode;
-
-
 template <class H>
 void Syntax<transform_unit>::go(const transform_unit &tu, H &h)
 {
@@ -429,7 +424,7 @@ void Syntax<transform_unit>::go(const transform_unit &tu, H &h)
         if (h[cu_qp_delta_abs()])
             h(cu_qp_delta_sign_flag(), ae(v));
         // review: move these specifics out of the syntax function
-        if (!std::is_same<typename H::Tag, Decode<void>>::value && static_cast<QpState *>(h)->getCanWrite())
+        if (static_cast<QpState *>(h)->getCanWrite())
         {
             int rowQgModulo = (tu.yBase & (h[CtbSizeY()] - 1)) >> 3;
             int colQgModulo = (tu.xBase & (h[CtbSizeY()] - 1)) >> 3;

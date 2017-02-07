@@ -98,6 +98,46 @@ template <> struct Decode<PictureBegin>
 };
 
 
+template <> struct Decode<PictureGenerate>
+{
+    template <class H> static void go(PictureGenerate pg, H &h)
+    {
+        Read<PictureGenerate>::go(pg, h);
+        if (h[BitDepthY()] > 8 || h[BitDepthC()] > 8)
+            inner<uint16_t>(pg, h);
+        else
+            inner<uint8_t>(pg, h);
+    }
+
+    template <class Sample, class H> static void inner(PictureGenerate pg, H &h)
+    {
+        StatePictures *statePictures = h;
+
+        auto statePicture = statePictures->getPicByPoc(pg.poc);
+
+        auto *p = new StateReconstructedPicture<Sample>;
+
+        const int pad = 96;// h[CtbSizeY()] + 16; // review: less padding will suffice
+        p->picture.reset(new Picture<Sample>(h[pic_width_in_luma_samples()], h[pic_height_in_luma_samples()], h[chroma_format_idc()], pad, pad, 32));
+
+        statePicture->reconstructedPicture.reset(p);
+
+        for (int cIdx = 0; cIdx < 3; ++cIdx)
+        {
+            int bitDepth = cIdx ? h[BitDepthC()] : h[BitDepthY()];
+            Raster<Sample> samples = (*p->picture)[cIdx];
+            fillRectangle<Sample>(
+                samples.offset(0, 0), 
+                1 << (bitDepth - 1), 
+                (*p->picture)[cIdx].width,
+                (*p->picture)[cIdx].height);
+        }
+
+        Padding::padPicture(*p->picture);
+    }
+};
+
+
 // Invoked to deblock the current decoded picture
 struct PictureDeblock {};
 
@@ -168,6 +208,9 @@ template <> struct Decode<PictureDone>
             inner<uint8_t>(h);
 
         Syntax<PictureDone>::go(pd, h);
+
+        StatePicture *statePicture = h;
+        statePicture->clearRpls();
     }
 
     template <class Sample, class H> static void inner(H &h)
@@ -391,7 +434,6 @@ template <class V> struct Decode<IfCbf<V, residual_coding>>
     }
 };
 
-
 template <>
 struct Decode<residual_coding>
 {
@@ -402,7 +444,8 @@ struct Decode<residual_coding>
 
         QpState *qpState = h;
 
-        Read<residual_coding>::go(rc, h);
+        constexpr bool decodeCoefficients = true;
+        Read<residual_coding>::go<H, decodeCoefficients>(rc, h);
 
         const int nCbS = 1 << rc.log2TrafoSize;
 
@@ -430,12 +473,9 @@ struct Decode<residual_coding>
             for (int xC = 0; xC < (1 << rc.log2TrafoSize); ++xC)
                 coeffsQ[(yC << rc.log2TrafoSize) + xC] = h[TransCoeffLevel(rc.x0, rc.y0, rc.cIdx, xC, yC)];
 
-        Raster<int16_t> quantizedCoefficients(coeffsQ, 1ull << rc.log2TrafoSize);
-        Raster<int16_t> coefficients(coeffs, 1ull << rc.log2TrafoSize);
-        Raster<int16_t> resSamples(res, 1ull << rc.log2TrafoSize);
-
-        ScalingMatrices::Type const matrix[32] = { 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16 };
-        Raster<ScalingMatrices::Type const> m(matrix, 0);
+        Raster<int16_t> quantizedCoefficients(coeffsQ, 1 << rc.log2TrafoSize);
+        Raster<int16_t> coefficients(coeffs, 1 << rc.log2TrafoSize);
+        Raster<int16_t> resSamples(res, 1 << rc.log2TrafoSize);
 
         Snake<BlockData>::Cursor *cursor = h;
         StateSpatial *stateSpatial = h;
@@ -447,7 +487,7 @@ struct Decode<residual_coding>
             ScalingMatrices *scalingMatrices = h;
             auto const sizeId = rc.log2TrafoSize - 2;
             auto const matrixId = ScalingMatrices::matrixId(sizeId, rc.cIdx, h[current(CuPredMode(rc.x0, rc.y0))]);
-            m = { scalingMatrices->getMatrix(sizeId, matrixId), 1ull << rc.log2TrafoSize };
+            Raster<ScalingMatrices::Type const> m(scalingMatrices->getMatrix(sizeId, matrixId), 1 << rc.log2TrafoSize );
             inverseQuantize(coefficients, quantizedCoefficients, m, rc.log2TrafoSize, qpState->getQp(rc.cIdx), bitDepth);
         }
         else

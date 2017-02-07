@@ -284,7 +284,7 @@ struct QpState :
         const int cr_qp_offset;
         const int cb_qp_offset;
         const int ChromaArrayType;
-        bool canWriteQp;
+        bool canWriteQp = false;
         int codedQp;
         int rasterToZscan[8][8] = { {0,  1,  4,  5,  16, 17, 20, 21},
                 {2,  3,  6,  7,  18, 19, 22, 23},

@@ -291,8 +291,8 @@ struct ReconstructIntraBlock
             inverseQuantize(coefficients.p, quantizedCoefficients.p, scale, shift, n);
         }
 
-        ALIGN(32, int16_t, backupPredictionBuffer[32 * 32]);
-        Raster<int16_t> backupPrediction(backupPredictionBuffer, 1 << rc.log2TrafoSize);
+        ALIGN(32, Sample, backupPredictionBuffer[32 * 32]);
+        Raster<Sample> backupPrediction(backupPredictionBuffer, 1 << rc.log2TrafoSize);
 
         ALIGN(32, int16_t, backupQuantCoeffsBuffer[32 * 32]);
         Raster<int16_t> backupQuantCoeffs(backupQuantCoeffsBuffer, 1 << rc.log2TrafoSize);
@@ -358,8 +358,8 @@ struct ReconstructIntraBlock
 
         if (checkTSkip && cbf)
         {
-            ALIGN(32, int16_t, recSamplesNoTSkipBuffer[32 * 32]);
-            Raster<int16_t> recSamplesNoTSkip(recSamplesNoTSkipBuffer, 1 << rc.log2TrafoSize);
+            ALIGN(32, Sample, recSamplesNoTSkipBuffer[32 * 32]);
+            Raster<Sample> recSamplesNoTSkip(recSamplesNoTSkipBuffer, 1 << rc.log2TrafoSize);
 
             // Backup reconstructed samples without tskip
             for (int y = 0; y < nTbS; y++)
@@ -772,8 +772,8 @@ template <class Cbf> struct ReconstructInterBlock
         if (checkTSkip && cbf)
         {
 
-            ALIGN(32, int16_t, recSamplesNoTSkipBuffer[32 * 32]);
-            Raster<int16_t> recSamplesNoTSkip(recSamplesNoTSkipBuffer, 1 << rc.log2TrafoSize);
+            ALIGN(32, Sample, recSamplesNoTSkipBuffer[32 * 32]);
+            Raster<Sample> recSamplesNoTSkip(recSamplesNoTSkipBuffer, 1 << rc.log2TrafoSize);
 
             ALIGN(32, int16_t, backupQuantCoeffsBuffer[32 * 32]);
             Raster<int16_t> backupQuantCoeffs(backupQuantCoeffsBuffer, 1 << rc.log2TrafoSize);
@@ -836,14 +836,13 @@ template <class Cbf> struct ReconstructInterBlock
                 {
                     double lambda = static_cast<StateEncodePicture*>(h)->lambda;
                     Contexts *contexts = h;
-                    bool isSdhEnabled = h[sign_data_hiding_enabled_flag()];
+                    bool isSdhEnabled = !!h[sign_data_hiding_enabled_flag()];
                     Rdoq rdoqEngine(lambda, contexts, scaleQuantise, scale, rc.log2TrafoSize, rc.cIdx ? h[BitDepthC()] : h[BitDepthY()]);
                     cbf = !!rdoqEngine.runQuantisation(quantizedCoefficients.p, coefficients.p, scaleQuantise, shiftQuantise,
                                                         n, rc, h[scanIdx()], false, isSdhEnabled);
                 }
                 else
                 {
-                    //cbf = !!quantize(quantizedCoefficients.p, coefficients.p, scaleQuantise, shiftQuantise, offsetQuantise, n);
                     cbf = !!quantize_c(quantizedCoefficients.p, coefficients.p, scaleQuantise, shiftQuantise, offsetQuantise, n);
                 }
 

@@ -68,11 +68,6 @@ struct StateDec :
     ValueHolder<pic_type>,
     ValueHolder<Stop>
 {
-    StateDec()
-    {
-        StatePicturesBase *statePicturesBase = this;
-        statePicturesBase->streamType = StatePicturesBase::streamTypeNal();
-    }
 };
 
 

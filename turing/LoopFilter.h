@@ -592,13 +592,6 @@ namespace LoopFilter
                 {
                     int qpy = h[QpY()];
 
-                    if(!std::is_same<typename H::Tag, Decode<void>>::value && h[cu_qp_delta_enabled_flag()])
-                    {
-                        int rowModulo = ((y<<3) & qpState->getMaskCtb()) >> 3;
-                        int colModulo = ((x<<3) & qpState->getMaskCtb()) >> 3;
-                        qpy = qpState->getQpInternal(rowModulo, colModulo);
-                    }
-
                     data = Block::packData(h, cu, qpy);
                     this->blockAt(x, y).data = data;
                 }

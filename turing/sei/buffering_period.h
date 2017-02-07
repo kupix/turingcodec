@@ -132,8 +132,8 @@ template <> struct Read<Element<bp_seq_parameter_set_id, ue>>
         else
         {
             h[Active<Sps>()] = found->second;
-            auto &hrd = h[Active<Sps>()]->hrdArray.hrd;
-            h.state = &h[Active<Sps>()]->hrdArray.hrd.front();
+            Hrd **hrd = h;
+            *hrd = &h[Active<Sps>()]->hrdArray.hrd.front();
         }
     }
 };

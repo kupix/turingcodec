@@ -961,7 +961,6 @@ void Syntax<hrd_parameters>::go(const hrd_parameters &fun, H &h)
     if (fun.commonInfPresentFlag)
     {
         h(nal_hrd_parameters_present_flag(), u(1));
-        std::cout<<h[nal_hrd_parameters_present_flag()]<<std::endl;
         h(vcl_hrd_parameters_present_flag(), u(1));
         if (h[nal_hrd_parameters_present_flag()] || h[vcl_hrd_parameters_present_flag()])
         {
@@ -1098,7 +1097,6 @@ struct payload_bit_equal_to_zero;
 
 template <class H> void Syntax<sei_payload>::go(sei_payload fun, H &h)
 {
-    StateEncode *stateEncode = h;
     if (h[nal_unit_type()] == 39 /*PREFIX_SEI_NUT*/)
     {
         if (fun.payloadType == 0)
@@ -1112,10 +1110,7 @@ template <class H> void Syntax<sei_payload>::go(sei_payload fun, H &h)
         else if (fun.payloadType == 4)
             h(user_data_registered_itu_t_t35(fun.payloadSize));
         else if (fun.payloadType == 5)
-        {
-            fun.payloadSize = 16 + stateEncode->userDataUnregMsgLen;
             h(user_data_unregistered(fun.payloadSize));
-        }
         else if (fun.payloadType == 6)
             h(recovery_point(fun.payloadSize));
         else if (fun.payloadType == 9)

@@ -18,20 +18,9 @@ the Turing codec are also available under a proprietary license.
 For more information, contact us at info @ turingcodec.org.
  */
 
-#ifndef INCLUDED_Profiles_h
-#define INCLUDED_Profiles_h
+#include "StatePicture.h"
 
-// Information and code concerning the HEVC Profile definitions (i.e. Main 10, etc.)
-
-
-#define HEVC_PROFILES \
-        X(1, "Main") \
-        X(2, "Main 10") \
-        X(3, "Main Still Picture") \
-        X(4, "Range Extensions") \
-        X(5, "Range Extensions High Throughput") \
-        X(6, "Multiview Main") \
-        X(7, "Scalable Main [10]") \
-
-
-#endif
+int dpbIndexPlus1(struct StatePicture *p, int refList, int refIdx)
+{
+    return p->dpbIndexPlus1[refList][refIdx];
+}

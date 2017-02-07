@@ -56,8 +56,3 @@ template <class H> void Read<bsp_nesting>::go(bsp_nesting const &f, H &h)
         bspNesting->nested = false;
     }
 }
-
-
-#ifdef EXPLICIT_INSTANTIATION
-    EXPLICIT_INSTANTIATION(bsp_nesting)
-#endif

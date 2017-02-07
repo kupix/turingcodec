@@ -179,6 +179,7 @@ add_library(turing
     StateFunctionTables.h
     StateParameterSets.h
     StatePicture.h
+    StatePicture.cpp
     StatePictures.h
     StateSpatial.h
     StateValues.h

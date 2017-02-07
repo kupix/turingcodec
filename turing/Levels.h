@@ -117,9 +117,8 @@ static const Level levels[] = {
 static const Level *getLevel(int level_idc, int tierFlag)
 {
     for (auto &level : levels)
-    {
-        if (level.level_idc() == level_idc && level.tierFlag == tierFlag) return &level;
-    }
+        if (level.level_idc() == level_idc && level.tierFlag == tierFlag) 
+            return &level;
     return 0;
 }
 

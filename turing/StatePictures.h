@@ -68,10 +68,6 @@ struct DpbClear {};
 template <> struct Syntax<DpbClear> : Null<DpbClear> { };
 
 
-// Request a newly allocated picture: this will be returned as a std::shared_ptr<S> where S is derived from StatePicture
-struct NewPicture {};
-
-
 static inline bool comparePicOrderCntVal(std::shared_ptr<StatePicture> a, std::shared_ptr<StatePicture> b)
 {
     return (*a)[PicOrderCntVal()] < (*b)[PicOrderCntVal()];
@@ -99,7 +95,7 @@ struct StatePicturesBase
     std::vector<int> FollDeltaPocMsbPresentFlag;
 
     uint64_t sequenceDecodeOrder;
-    size_t posEndCvs;
+    size_t auEndCvs;
 
     bool sliceHeaderValid;
     int sliceNalUnitType;
@@ -123,18 +119,10 @@ struct StatePicturesBase
     };
     PrevTid0Pic prevTid0Pic;
 
-    typedef int CodedVideoSequenceId;
-    CodedVideoSequenceId codedVideoSequenceId;
+    int codedVideoSequenceId;
+    int accessUnitId;
 
     int NoRaslOutputFlag;
-
-    int pocCollocated;
-
-    const char *streamType;
-    static const char *streamTypeNal() { static const char *n = "NAL"; return n; }
-    static const char *streamTypeRbsp() { static const char *n = "RBSP"; return n; }
-    static const char *streamTypeCabac() { static const char *n = "CABAC"; return n; }
-    static const char *streamTypeSei() { static const char *n = "SEI"; return n; }
 };
 
 
@@ -166,31 +154,6 @@ void setupStateReconstructedPicture(Picture &dp, H &h)
 };
 
 
-template <class Picture> struct GeneratePicture
-{
-    template <class H> static void go(Picture &dp, H &h)
-    {
-    }
-};
-
-
-template <typename Sample> struct GeneratePicture<StateReconstructedPicture<Sample>>
-{
-    template <class H> static void go(StateReconstructedPicture<Sample> &dp, H &h)
-    {
-        const int pad = 96;// h[CtbSizeY()] + 16; // review: less padding will suffice
-        Picture<Sample> *picture = new Picture<Sample>(h[pic_width_in_luma_samples()], h[pic_height_in_luma_samples()], h[chroma_format_idc()], pad, pad, 32);
-        dp.reconstructedPicture.reset(picture);
-
-        for (int cIdx = 0; cIdx < 3; ++cIdx)
-        {
-            int bitDepth = cIdx ? h[BitDepthC()] : h[BitDepthY()];
-            Raster<Sample> samples = (*dp.reconstructedPicture)[cIdx];
-            fillRectangle<Sample>(samples, 1 << (bitDepth - 1), (*dp.reconstructedPicture)[cIdx].width, (*dp.reconstructedPicture)[cIdx].height);
-        }
-    }
-};
-
 struct PictureNew {};
 
 
@@ -198,6 +161,7 @@ struct PictureGenerate
 {
     int poc;
     Reference reference;
+    bool missing; // false if generating per the standard, true if reference was unexpectedly missing
 };
 
 
@@ -211,6 +175,11 @@ struct StatePictures :
     StatePicturesBase
 {
     std::array<std::shared_ptr<StatePicture>, 16> RefPicSetStCurrBefore, RefPicSetStCurrAfter, RefPicSetLtCurr;
+
+    StatePicture* newPicture()
+    {
+        return new StatePicture;
+    }
 
     // Decoding process for picture order count
     template <class H>
@@ -409,19 +378,6 @@ struct StatePictures :
         }
     }
 
-    // Decoding process for generating unavailable reference pictures
-    template <class H>
-    void generateUnavailablePictures(H &h)
-    {
-        for (int i = 0; i < NumPocStFoll; ++i)
-            if (!getPicByPoc(PocStFoll[i]))
-                h(PictureGenerate{ PocStFoll[i], SHORT_TERM });
-
-        for (int i = 0; i < NumPocLtFoll; ++i)
-            if (!getPicByPoc(PocLtFoll[i]))
-                h(PictureGenerate{ PocLtFoll[i], LONG_TERM });
-    }
-
     template <class H>
     void constructReferencePictureLists(H &h)
     {
@@ -457,13 +413,6 @@ struct StatePictures :
             {
                 h[RefPicList(L0)][rIdx].dp = RefPicListTemp0[h[ref_pic_list_modification_flag_l0()] ? h[list_entry_l0(rIdx)] : rIdx];
 
-                if (!h[RefPicList(L0)][rIdx].dp)
-                {
-                    // review: this is not a problem if the current picture will not be output or used for reference
-                    h(Violation("8.3.2", "RefPicList0 contains a \"no reference picture\" entry"));
-                    throw Abort();
-                }
-
                 h[RefPicList(L0)][rIdx].reference = h[RefPicList(L0)][rIdx].dp->reference;
 
                 statePicture->dpbIndexPlus1[L0][rIdx] = positionOfPictureInDpb(this->dpb, h[RefPicList(L0)][rIdx].dp.get()) + 1;
@@ -497,13 +446,6 @@ struct StatePictures :
             {
                 h[RefPicList(L1)][rIdx].dp = RefPicListTemp1[h[ref_pic_list_modification_flag_l1()] ? h[list_entry_l1(rIdx)] : rIdx];
 
-                if (!h[RefPicList(L1)][rIdx].dp)
-                {
-                    // review: this is not a problem if the current picture will not be output or used for reference
-                    h(Violation("8.3.2", "RefPicList1 contains a \"no reference picture\" entry"));
-                    throw Abort();
-                }
-
                 h[RefPicList(L1)][rIdx].reference = h[RefPicList(L1)][rIdx].dp->reference;
 
                 static_cast<StatePicture *>(h)->dpbIndexPlus1[L1][rIdx] = positionOfPictureInDpb(this->dpb, h[RefPicList(L1)][rIdx].dp.get()) + 1;
@@ -511,34 +453,6 @@ struct StatePictures :
                 const int poc = h[RefPicList(L1)][rIdx].dp ? (*h[RefPicList(L1)][rIdx].dp)[PicOrderCntVal()] : 0;
                 if (DiffPicOrderCnt(h, poc, h[PicOrderCntVal()]) > 0)
                     statePicture->allBackwards = false;
-            }
-        }
-
-        // Move to verifier
-        if ((h[slice_type()] == P || h[slice_type()] == B) && h[slice_temporal_mvp_enabled_flag()])
-        {
-            if (h[collocated_ref_idx()] >= 0 || h[collocated_ref_idx()] < 16)
-            {
-                auto dp = h[RefPicList(h[collocated_from_l0_flag()] ? L0 : L1)][h[collocated_ref_idx()]].dp;
-                if (dp)
-                {
-                    const int poc = (*dp)[PicOrderCntVal()];
-                    StatePictures& state = *this;
-
-                    if (h[first_slice_segment_in_pic_flag()])
-                    {
-                        state.pocCollocated = poc;
-                    }
-                    else
-                    {
-                        if (state.pocCollocated != poc)
-                        {
-                            h(Violation("7.4.7", "picture referred to by collocated_ref_idx (POC=%1%) is different to that in a previous slice (POC=%2%)")
-                                % poc
-                                % state.pocCollocated); // CondCheck 7.4.7-AG
-                        }
-                    }
-                }
             }
         }
     }
@@ -891,7 +805,47 @@ template <> struct Syntax<PictureBegin>
         if (isBla(nut) || (isCra(nut) && statePictures->NoRaslOutputFlag == 1))
         {
             //the decoding process for generating unavailable reference pictures specified in subclause 8.3.3 is invoked.
-            statePictures->generateUnavailablePictures(h); // 8.3.3
+
+            // Decoding process for generating unavailable reference pictures
+            for (int i = 0; i < statePictures->NumPocStFoll; ++i)
+                if (!statePictures->getPicByPoc(statePictures->PocStFoll[i]))
+                    h(PictureGenerate{ statePictures->PocStFoll[i], SHORT_TERM, false });
+
+            for (int i = 0; i < statePictures->NumPocLtFoll; ++i)
+                if (!statePictures->getPicByPoc(statePictures->PocLtFoll[i]))
+                    h(PictureGenerate{ statePictures->PocLtFoll[i], LONG_TERM, false });
+        }
+        else
+        {
+            // handle pictures missing but needed
+            for (int i = 0; i < statePictures->NumPocStFoll; ++i)
+                if (!statePictures->getPicByPoc(statePictures->PocStFoll[i]))
+                    h(PictureGenerate{ statePictures->PocStFoll[i], SHORT_TERM, true });
+
+            for (int i = 0; i < statePictures->NumPocLtFoll; ++i)
+                if (!statePictures->getPicByPoc(statePictures->PocLtFoll[i]))
+                    h(PictureGenerate{ statePictures->PocLtFoll[i], LONG_TERM, true });
+
+            for (int i = 0; i < statePictures->NumPocStCurrBefore; ++i)
+                if (!statePictures->getPicByPoc(statePictures->PocStCurrBefore[i]))
+                {
+                    h(PictureGenerate{ statePictures->PocStCurrBefore[i], SHORT_TERM, true });
+                    statePictures->RefPicSetStCurrBefore[i] = statePictures->getPicByPoc(statePictures->PocStCurrBefore[i]);
+                }
+
+            for (int i = 0; i < statePictures->NumPocStCurrAfter; ++i)
+                if (!statePictures->getPicByPoc(statePictures->PocStCurrAfter[i]))
+                {
+                    h(PictureGenerate{ statePictures->PocStCurrAfter[i], SHORT_TERM, true });
+                    statePictures->RefPicSetStCurrAfter[i] = statePictures->getPicByPoc(statePictures->PocStCurrAfter[i]);
+                }
+
+            for (int i = 0; i < statePictures->NumPocLtCurr; ++i)
+                if (!statePictures->getPicByPoc(statePictures->PocLtCurr[i]))
+                {
+                    h(PictureGenerate{ statePictures->PocLtCurr[i], LONG_TERM, true });
+                    statePictures->RefPicSetLtCurr[i] = statePictures->getPicByPoc(statePictures->PocLtCurr[i]);
+                }
         }
 
         // The processes specified in this subclause happen instantaneously when the last decoding unit of access unit n containing the current picture is removed from the CPB.
@@ -913,34 +867,29 @@ template <> struct Syntax<PictureBegin>
 
         statePicture->loopFilterPicture.reset(new LoopFilter::Picture(h));
     }
-};
 
-
-template <class Verb, class Tuple>
-struct HandleValue<NewPicture, Verb, Tuple>
-{
-    typedef std::shared_ptr<StatePicture> Type;
-    template <class H> static Type get(NewPicture, H &)
+    StatePicture *newPicture()
     {
-        return Type{ new StatePicture };
+        return new StatePicture;
     }
 };
 
 
 template <class H> void Syntax<PictureGenerate>::go(PictureGenerate pg, H &h)
 {
-    StatePictures *statePictures = h;
-
-    std::shared_ptr<StatePicture> statePicture = h[NewPicture()];
+    auto&statePicturesConcrete = h[Concrete<StatePictures>()];
+    auto* newPicture = statePicturesConcrete.newPicture();
+    std::shared_ptr<StatePicture> statePicture(newPicture);
 
     (*statePicture)[PicOrderCntVal()] = pg.poc;
 
-    statePictures->setupDecodedPicture(statePicture.get(), h);
+    statePicturesConcrete.setupDecodedPicture(newPicture, h);
 
     statePicture->reference = pg.reference;
-    statePicture->neededForOutput = false;
+    statePicture->neededForOutput = pg.missing;
     statePicture->reconstructed = true;
-    statePicture->generatedUnavailable = true;
+    statePicture->generatedUnavailable = !pg.missing;
+    statePicture->missing = pg.missing;
 }
 
 

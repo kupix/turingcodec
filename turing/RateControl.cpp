@@ -541,7 +541,7 @@ void SequenceController::pictureRateAllocation(int currentPictureLevel)
 {
     CodedPicture &codedPictureAtLevel = m_dataStorageEngine->getPictureAtLevel(currentPictureLevel);
     codedPictureAtLevel.setLevel(currentPictureLevel);
-    int picTargetBits = m_sopControllerEngine->allocateRateCurrentPicture(m_framesLeft, currentPictureLevel);
+    int picTargetBits = m_sopControllerEngine->allocateRateCurrentPicture(static_cast<int>(m_framesLeft), currentPictureLevel);
 
     // Cpb correction
     m_cpbControllerEngine.adjustAllocatedBits(picTargetBits);

@@ -165,9 +165,9 @@ struct ScanArray
 
 
 template <int log2BlockSize>
-ScanArray<1 << log2BlockSize> const &scanPos()
+ScanArray<(1 << log2BlockSize)> const &scanPos()
 {
-    static const ScanArray<1 << log2BlockSize> scanArray;
+    static const ScanArray<(1 << log2BlockSize)> scanArray;
     return scanArray;
 }
 
@@ -204,10 +204,16 @@ struct ScanArrayInverse
 };
 
 
+constexpr int power2(int log)
+{
+    return 1 << log;
+}
+
+
 template <int log2BlockSize>
 static inline uint8_t const &scanPosInverse(int scanIdx, int rasterPos)
 {
-    static const ScanArrayInverse<1 << log2BlockSize> scanArrayInverse;
+    static const ScanArrayInverse<power2(log2BlockSize)> scanArrayInverse;
     return scanArrayInverse.lookup[scanIdx][rasterPos];
 }
 
