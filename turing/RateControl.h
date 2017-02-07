@@ -205,9 +205,9 @@ public:
     }
 
     list<CodedPicture>& getPreviousCodedPictures()
-	{
+    {
         return m_previousCodedPictures;
-	}
+    }
 
     CodedPicture& getPictureAtLevel(int level)
     {
