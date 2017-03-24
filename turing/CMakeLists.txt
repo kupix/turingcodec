@@ -25,6 +25,8 @@ else()
 endif()
 
 if(MSVC)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DBOOST_ALL_NO_LIB /bigobj /GS- /MP")
+
     #We statically link to reduce dependancies
     foreach(flag_var CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO)
         if(${flag_var} MATCHES "/MD")
@@ -34,24 +36,24 @@ if(MSVC)
             string(REGEX REPLACE "/MDd" "/MTd" ${flag_var} "${${flag_var}}")
         endif(${flag_var} MATCHES "/MDd")
     endforeach(flag_var)
-endif(MSVC)
 
-if (MSVC)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DBOOST_ALL_NO_LIB /bigobj /GS- /MP")
-endif()
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-operator-names")
 
-set(LINK_LIBRARIES boost_program_options boost_filesystem boost_system boost_timer boost_chrono)
-
-if (CMAKE_COMPILER_IS_GNUCC)
+elseif (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
     set(GCC_COMPILE_FLAGS "-fno-operator-names -std=c++0x -pthread -O3 -std=c++1y -mlzcnt")
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0")
     set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${GCC_COMPILE_FLAGS}")
     if (NOT APPLE)
         set(LINK_LIBRARIES ${LINK_LIBRARIES} rt)
     endif()
-elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-operator-names")
+
+else()
+    message( STATUS "CMAKE_CXX_COMPILER_ID=${CMAKE_CXX_COMPILER_ID} )
+
 endif()
+
+set(LINK_LIBRARIES boost_program_options boost_filesystem boost_system boost_timer boost_chrono)
 
 set(SEI_HEADERS
     sei/ReadSei.h
@@ -208,21 +210,24 @@ add_library(turing
     Write.h
     ${SEI_HEADERS})
 
+set_property(TARGET turing PROPERTY CXX_STANDARD 11)
+
 source_group(SEI FILES ${SEI_HEADERS})
 
 target_link_libraries (turing LINK_PUBLIC havoc)
 
 add_executable (turing-exe main.cpp)
 
+set_property(TARGET turing-exe PROPERTY CXX_STANDARD 11)
 set_target_properties(turing-exe PROPERTIES OUTPUT_NAME turing)
 
 target_link_libraries (turing-exe LINK_PUBLIC turing ${LINK_LIBRARIES})
 if(UNIX)
-	include(FindPkgConfig QUIET)
-	if(PKG_CONFIG_FOUND)
-		configure_file("libturing.pc.in" "libturing.pc" @ONLY)
-		install(FILES "${CMAKE_CURRENT_BINARY_DIR}/libturing.pc" DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/pkgconfig")
-	endif()
+    include(FindPkgConfig QUIET)
+    if(PKG_CONFIG_FOUND)
+        configure_file("libturing.pc.in" "libturing.pc" @ONLY)
+        install(FILES "${CMAKE_CURRENT_BINARY_DIR}/libturing.pc" DESTINATION "${CMAKE_INSTALL_PREFIX}/lib/pkgconfig")
+    endif()
 endif()
 
 install(TARGETS turing LIBRARY DESTINATION lib ARCHIVE DESTINATION lib)

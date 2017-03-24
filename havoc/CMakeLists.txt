@@ -51,9 +51,13 @@ add_library (havoc
 	README.md
 )
 
+set_property(TARGET havoc PROPERTY CXX_STANDARD 11)
+
 add_executable(havoc-exe
 	main.cpp
 )
+
+set_property(TARGET havoc-exe PROPERTY CXX_STANDARD 11)
 
 target_link_libraries(havoc-exe havoc)
 
