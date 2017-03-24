@@ -49,7 +49,7 @@ elseif (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
     endif()
 
 else()
-    message( STATUS "CMAKE_CXX_COMPILER_ID=${CMAKE_CXX_COMPILER_ID} )
+    message( STATUS "CMAKE_CXX_COMPILER_ID=${CMAKE_CXX_COMPILER_ID}" )
 
 endif()
 
