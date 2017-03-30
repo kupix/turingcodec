@@ -53,7 +53,7 @@ else()
 
 endif()
 
-set(LINK_LIBRARIES boost_program_options boost_filesystem boost_system boost_timer boost_chrono)
+set(LINK_LIBRARIES ${LINK_LIBRARIES} boost_program_options boost_filesystem boost_system boost_timer boost_chrono)
 
 set(SEI_HEADERS
     sei/ReadSei.h
