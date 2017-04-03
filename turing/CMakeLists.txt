@@ -24,6 +24,8 @@ else()
     include_directories("${CMAKE_CURRENT_SOURCE_DIR}/../boost")
 endif()
 
+set(LINK_LIBRARIES ${LINK_LIBRARIES} boost_program_options boost_filesystem boost_system boost_timer boost_chrono)
+
 if(MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DBOOST_ALL_NO_LIB /bigobj /GS- /MP")
 
@@ -52,8 +54,6 @@ else()
     message( STATUS "CMAKE_CXX_COMPILER_ID=${CMAKE_CXX_COMPILER_ID}" )
 
 endif()
-
-set(LINK_LIBRARIES ${LINK_LIBRARIES} boost_program_options boost_filesystem boost_system boost_timer boost_chrono)
 
 set(SEI_HEADERS
     sei/ReadSei.h

@@ -242,8 +242,6 @@ struct ValueConst :
         {
             assert(h[V()] == v || !"h has wrong value of V - hardcoded value will be v");
         }
-
-        ValueConst() { }
     };
 
 template <typename Tag, int v>
@@ -252,19 +250,11 @@ constexpr int getVal(ValueConst<Tag, v> *)
     return v;
 }
 
-template <typename Tag, unsigned N>
-constexpr auto getConstVal(ValueConst<Tag, N>)
-{
-    return std::integral_constant<unsigned, N>{};
-};
-
-
 template <class V, class S>
 struct Access<V, S, typename std::enable_if<std::is_base_of<ValueConstBase<V>, S>::value>::type> :
     ValueType<V>
     {
-        static constexpr unsigned value = decltype(getConstVal<V>(std::declval<S>()))::value;
-
+        // This compiles to a function returning a constant integer value.
         constexpr static typename ValueType<V>::Type get(V, S const&)
         {
             return getVal<V>((S*)nullptr);

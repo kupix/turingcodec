@@ -457,7 +457,7 @@ struct pps_cr_qp_offset { };
 struct pps_slice_chroma_qp_offsets_present_flag { };
 struct weighted_pred_flag { };
 struct weighted_bipred_flag { };
-struct slice_type;
+struct slice_type { };
 DEFINE_DERIVED(weightedPredFlag, (h[slice_type()] == P) ? h[weighted_pred_flag()] : h[weighted_bipred_flag()]); // todo - ValueCache for this
 struct transquant_bypass_enabled_flag { };
 struct tiles_enabled_flag { };
@@ -621,7 +621,6 @@ struct slice_pic_parameter_set_id { };
 struct dependent_slice_segment_flag { };
 struct slice_segment_address { };
 struct slice_reserved_flag { slice_reserved_flag(int) { } };
-struct slice_type { };
 struct pic_output_flag { };
 struct colour_plane_id { };
 struct slice_pic_order_cnt_lsb { };
