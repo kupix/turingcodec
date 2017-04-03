@@ -20,13 +20,10 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if (CMAKE_COMPILER_IS_GNUCC)
-	set(GCC_COMPILE_FLAGS "-fno-operator-names -std=c++0x -O3")
-	if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 4.6)
-		set(GCC_COMPILE_FLAGS "${CMAKE_CXX_FLAGS}  -std=c++1y")
-	endif()
+	set(GCC_COMPILE_FLAGS "-fno-operator-names -std=c++0x -std=c++1y -O3")
 	set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${GCC_COMPILE_FLAGS}")
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-operator-names")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-operator-names -std=c++11")
 endif()
 
 add_library (havoc
