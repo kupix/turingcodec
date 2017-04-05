@@ -70,7 +70,9 @@ struct HrdArray
     std::vector<Hrd> hrd;
 };
 
-template <class S> struct Active;
+template <class ParameterSetData>
+struct Active { };
+
 struct Sps;
 
 template <class H>
@@ -183,10 +185,6 @@ struct ValueType<Table<ParameterSetData>>
 {
     typedef std::map<int, std::shared_ptr<ParameterSetData>> Type;
 };
-
-
-template <class ParameterSetData>
-struct Active { };
 
 
 template <class ParameterSetData>
