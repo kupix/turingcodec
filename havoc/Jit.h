@@ -152,11 +152,7 @@ namespace Jit {
             {
                 if (this->getSize() == 0) return 0;
                 assert(CountArguments<F>::value == this->nArguments);
-#if __APPLE__
-                return (F *)(this->getCode());
-#else
-                return reinterpret_cast<F *>(this->getCode());
-#endif
+                return reinterpret_cast<F *>(const_cast<uint8_t *>(this->getCode()));
             }
 
 protected:
